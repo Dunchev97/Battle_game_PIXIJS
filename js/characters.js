@@ -435,7 +435,7 @@ window.Character = class Character {
                         this.currentAnimation !== ANIMATION_STATES.ATTACK && 
                         this.currentAnimation !== ANIMATION_STATES.DEATH) {
                         console.log(`[ОБНОВЛЕНИЕ] ${this.type} (${this.team}) устанавливает анимацию ожидания во время кулдауна`);
-                        this.currentAnimation = ANIMATION_STATES.IDLE;
+                        this.currentAnimation = this.isMoving ? ANIMATION_STATES.WALK : ANIMATION_STATES.IDLE;
                         this.frameIndex = 0;
                         this.updateSpriteFrame();
                     }
@@ -666,6 +666,7 @@ window.Character = class Character {
                 this.currentAnimation = ANIMATION_STATES.IDLE;
                 this.frameIndex = 0;
                 this.updateSpriteFrame();
+                this.isMoving = false; 
             }
         }
     }
@@ -744,11 +745,14 @@ window.Character = class Character {
             
             setTimeout(() => {
                 if (this.isAlive && this.currentAnimation === ANIMATION_STATES.HURT) {
-                    // Если персонаж двигается, устанавливаем анимацию ходьбы
-                    if (this.isMoving) {
+                    // Проверяем, находится ли персонаж в движении
+                    // (если есть цель и персонаж вне зоны атаки)
+                    if (this.target && this.target.isAlive && this.distanceTo(this.target) > this.attackRange) {
                         this.currentAnimation = ANIMATION_STATES.WALK;
+                        this.isMoving = true; // Устанавливаем флаг движения
                     } else {
                         this.currentAnimation = ANIMATION_STATES.IDLE;
+                        this.isMoving = false; // Сбрасываем флаг движения
                     }
                     this.frameIndex = 0;
                 }
@@ -756,49 +760,67 @@ window.Character = class Character {
         }
     }
     
-    // Метод для смерти персонажа
-die() {
-    if (!this.isAlive) {
-        console.log(`[СМЕРТЬ] ${this.type} (${this.team}) уже мертв`);
-        return;
-    }
-    
-    this.isAlive = false;
-    this.health = 0;
-    
-    console.log(`[СМЕРТЬ] ${this.type} (${this.team}) начинает анимацию смерти`);
-    
-    // Сохраняем спрайт персонажа
-    const characterSprite = this.characterSprite;
-    
-    // Создаем новый контейнер только со спрайтом
-    const newContainer = new PIXI.Container();
-    newContainer.position.set(this.x, this.y);
-    newContainer.addChild(characterSprite);
-    
-    // Заменяем старый контейнер новым
-    const parent = this.container.parent;
-    if (parent) {
-        const index = parent.children.indexOf(this.container);
-        if (index !== -1) {
-            parent.removeChildAt(index);
-            parent.addChildAt(newContainer, index);
+    die() {
+        if (!this.isAlive) {
+            console.log(`[СМЕРТЬ] ${this.type} (${this.team}) уже мертв`);
+            return;
         }
+        
+        this.isAlive = false;
+        this.health = 0;
+        
+        console.log(`[СМЕРТЬ] ${this.type} (${this.team}) начинает анимацию смерти`);
+        
+        // Удаляем полосу здоровья и обводку правильно
+        if (this.healthBar) {
+            const healthBarIndex = this.container.children.indexOf(this.healthBar);
+            if (healthBarIndex !== -1) {
+                this.container.removeChildAt(healthBarIndex);
+            }
+        }
+        
+        if (this.team === TEAMS.ENEMY && this.outline) {
+            const outlineIndex = this.container.children.indexOf(this.outline);
+            if (outlineIndex !== -1) {
+                this.container.removeChildAt(outlineIndex);
+            }
+        }
+        
+        // Сохраняем спрайт и создаем новый контейнер
+        const characterSprite = this.characterSprite;
+        
+        // Создаем новый контейнер только со спрайтом
+        const newContainer = new PIXI.Container();
+        newContainer.position.set(this.x, this.y);
+        newContainer.addChild(characterSprite);
+        
+        // Заменяем старый контейнер новым
+        const parent = this.container.parent;
+        if (parent) {
+            const index = parent.children.indexOf(this.container);
+            if (index !== -1) {
+                parent.removeChildAt(index);
+                parent.addChildAt(newContainer, index);
+            }
+        }
+        
+        // Важно! Полностью очищаем ссылки
+        this.container = newContainer;
+        this.healthBar = null;
+        this.outline = null;
+        
+        // Устанавливаем анимацию смерти
+        this.currentAnimation = ANIMATION_STATES.DEATH;
+        this.frameIndex = 0;
+        this.updateSpriteFrame();
     }
-    
-    // Обнуляем ссылки на старые объекты
-    this.container = newContainer;
-    this.healthBar = null;
-    this.outline = null;
-    
-    // Устанавливаем анимацию смерти
-    this.currentAnimation = ANIMATION_STATES.DEATH;
-    this.frameIndex = 0;
-    this.updateSpriteFrame();
-}
     
     // Метод для обновления полосы здоровья
     updateHealthBar() {
+// Проверка на null и на смерть персонажа
+        if (!this.healthBar || !this.isAlive) {
+            return;
+        }
         // Если персонаж мертв, удаляем полосу здоровья из контейнера
         if (!this.isAlive) {
             // Если HP бар еще в контейнере, удаляем его
@@ -1001,35 +1023,6 @@ die() {
             } else {
                 this.target = closestEnemy;
             }
-        }
-    }
-    
-    moveTowardsTarget(delta) {
-        if (!this.target) return;
-        
-        const distance = this.distanceTo(this.target);
-        
-        // If we're an archer and too close to the target, move away
-        if (this.type === CHARACTER_TYPES.ARCHER && 
-            distance < CHARACTER_STATS[CHARACTER_TYPES.ARCHER].safeDistance) {
-            this.moveAwayFromTarget(delta);
-            return;
-        }
-        
-        // If we're outside attack range, move towards target
-        if (distance > this.attackRange) {
-            // Вычисляем направление движения
-            let moveAngle = Math.atan2(this.target.y - this.y, this.target.x - this.x);
-            
-            // Вычисляем скорость движения
-            const moveSpeed = this.speed * delta;
-            
-            // Двигаемся в направлении цели
-            this.x += Math.cos(moveAngle) * moveSpeed;
-            this.y += Math.sin(moveAngle) * moveSpeed;
-            
-            // Ограничиваем движение полем боя
-            this.stayWithinBattlefield();
         }
     }
 
