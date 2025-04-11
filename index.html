@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle Game</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+        }
+        #gameCanvas {
+            display: block;
+        }
+        .button {
+            padding: 20px 40px; /* Увеличено в 2 раза с 10px 20px до 20px 40px */
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px; /* Увеличено в 2 раза с 5px до 10px */
+            font-size: 32px; /* Увеличено в 2 раза с 16px до 32px */
+            cursor: pointer;
+            margin: 20px; /* Увеличено в 2 раза с 10px до 20px */
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <!-- PixiJS from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/7.3.2/pixi.min.js"></script>
+    <!-- GSAP для анимации -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    
+    <!-- Game scripts -->
+    <script src="js/constants.js"></script>
+    <script src="js/animations.js"></script>
+    <script src="js/characters.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/battleField.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>
