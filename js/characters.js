@@ -10,11 +10,11 @@ window.Character = class Character {
         const stats = CHARACTER_STATS[type];
         this.maxHealth = stats.health;
         this.health = stats.health;
-        this.attackPower = stats.attack; // Переименовываем в attackPower
+        this.attackPower = stats.attack; 
         this.speed = stats.speed;
         this.attackRange = stats.attackRange;
-        this.attackCooldown = stats.attackCooldown;
-        this.attackCooldownReset = stats.attackCooldown; // Добавляем для сброса кулдауна
+        this.attackCooldownReset = stats.attackCooldown; // Сохраняем значение для сброса
+        this.attackCooldown = 0; // Устанавливаем начальный кулдаун в 0, чтобы позволить атаковать сразу
         this.color = stats.color;
         this.radius = stats.radius;
         
@@ -349,8 +349,8 @@ checkSpriteVisibility() {
             return;
         }
         // Для лучника: дополнительная проверка на близость врагов
-    if (this.type === CHARACTER_TYPES.ARCHER && this.isAlive) {
-        const safeDistance = CHARACTER_STATS[CHARACTER_TYPES.ARCHER].safeDistance;
+        if ((this.type === CHARACTER_TYPES.ARCHER || this.type === CHARACTER_TYPES.FIREMAGE) && this.isAlive) {
+        const safeDistance = CHARACTER_STATS[this.type].safeDistance;
         let tooCloseEnemy = false;
         
         for (const char of characters) {

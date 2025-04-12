@@ -122,7 +122,7 @@ window.WARRIOR_ANIMATIONS = {
     }
 };
 
-// Определяем НОВЫЕ анимации для воина (Knight_1_Spritesheet1.png)
+// Определяем НОВЫЕ анимации для воина (Knight_1_Spritesheet2.png)
 window.NEW_WARRIOR_ANIMATIONS = {
     // Состояние покоя (4 кадра)
     idle: {
