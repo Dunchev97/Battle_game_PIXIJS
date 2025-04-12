@@ -2,38 +2,41 @@
 class Game {
     constructor() {
         // Initialize PIXI Application
-        this.app = new PIXI.Application({
-            width: GAME_WIDTH,
-            height: GAME_HEIGHT,
-            backgroundColor: 0x333333,
-            view: document.getElementById('gameCanvas'),
-            resolution: window.devicePixelRatio || 1
-        });
-        
-        // Create separate containers for different game layers
-        this.uiLayer = new PIXI.Container();
-        this.battlefieldLayer = new PIXI.Container();
-        
-        // Add layers to stage in the correct order (battlefield behind UI)
-        this.app.stage.addChild(this.battlefieldLayer);
-        this.app.stage.addChild(this.uiLayer);
-        
-        // Hide battlefield layer initially
-        this.battlefieldLayer.visible = false;
-        
-        // Set initial game state
-        this.state = GAME_STATES.SELECTION;
-        
-        // Initialize managers with proper layers
-        this.ui = new UIManager(this.app, this.uiLayer);
-        this.battlefield = new BattlefieldManager(this.app, this.battlefieldLayer);
-        
-        // Start game loop
-        this.app.ticker.add(this.update.bind(this));
-        
-        // Start the game
-        this.startSelection();
-    }
+    this.app = new PIXI.Application({
+        width: GAME_WIDTH,
+        height: GAME_HEIGHT,
+        backgroundColor: 0x333333,
+        view: document.getElementById('gameCanvas'),
+        resolution: window.devicePixelRatio || 1
+    });
+    
+    // Create separate containers for different game layers
+    this.uiLayer = new PIXI.Container();
+    this.battlefieldLayer = new PIXI.Container();
+    
+    // Add layers to stage in the correct order (battlefield behind UI)
+    this.app.stage.addChild(this.battlefieldLayer);
+    this.app.stage.addChild(this.uiLayer);
+    
+    // Hide battlefield layer initially
+    this.battlefieldLayer.visible = false;
+    
+    // Set initial game state
+    this.state = GAME_STATES.SELECTION;
+    
+    // Добавляем выбранную сложность (по умолчанию легкая)
+    this.selectedDifficulty = DIFFICULTY.EASY;
+    
+    // Initialize managers with proper layers
+    this.ui = new UIManager(this.app, this.uiLayer);
+    this.battlefield = new BattlefieldManager(this.app, this.battlefieldLayer);
+    
+    // Start game loop
+    this.app.ticker.add(this.update.bind(this));
+    
+    // Start the game
+    this.startSelection();
+}
     
     // Обновление игры
     update(delta) {

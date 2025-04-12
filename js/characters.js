@@ -69,6 +69,9 @@ window.Character = class Character {
         } else if (this.type === CHARACTER_TYPES.ASSASSIN) {
             spriteSheetPath = 'images/Assassin_SpriteSheet.png';
             this.animations = NEW_ASSASSIN_ANIMATIONS;
+        } else if (this.type === CHARACTER_TYPES.FIREMAGE) {
+            spriteSheetPath = 'images/fire_mage_spritesheet.png';
+            this.animations = NEW_FIREMAGE_ANIMATIONS;
         }
         
         
@@ -662,30 +665,26 @@ findTargetWithLowestHealth(characters) {
     return distance - this.radius - character.radius;
     }
     
-    moveTowardsTarget(delta) {if (!this.target || !this.target.isAlive) {
-        // console.log(`[ДВИЖЕНИЕ] ${this.type} (${this.team}) не может двигаться: цель отсутствует или мертва`);
-        this.findTarget();
-        return;
-    }
-
-    const distance = this.distanceTo(this.target); // Перенесено в начало
-    // console.log(`[ДВИЖЕНИЕ] ${this.type} (${this.team}) расстояние до цели: ${distance}`);
-
-    // Для лучника: отдельная логика движения
-    if (this.type === CHARACTER_TYPES.ARCHER) {
-        const safeDistance = CHARACTER_STATS[CHARACTER_TYPES.ARCHER].safeDistance;
-        // console.log(`[РАСЧЕТ РАССТОЯНИЯ] Лучник(${this.team}): расстояние=${distance}, safeDistance=${safeDistance}, attackRange=${this.attackRange}, радиус=${this.radius}, целевой радиус=${this.target.radius}`);
-
-        // Если слишком близко - отступаем
-        const actualDistance = distance - this.radius - this.target.radius;
-        if (actualDistance < safeDistance) {
-            // console.log(`[ДВИЖЕНИЕ] Лучник ${this.team} слишком близко (фактическое=${actualDistance}, безопасное=${safeDistance}), отступает!`);
-            this.moveAwayFromTarget(delta);
+    moveTowardsTarget(delta) {
+        if (!this.target || !this.target.isAlive) {
+            this.findTarget();
             return;
         }
+    
+        const distance = this.distanceTo(this.target);
+    
+        // Для лучника и мага огня: отдельная логика движения
+        if (this.type === CHARACTER_TYPES.ARCHER || this.type === CHARACTER_TYPES.FIREMAGE) {
+            const safeDistance = CHARACTER_STATS[this.type].safeDistance;
+    
+            // Если слишком близко - отступаем
+            const actualDistance = distance - this.radius - this.target.radius;
+            if (actualDistance < safeDistance) {
+                this.moveAwayFromTarget(delta);
+                return;
+            }
             // Если слишком далеко - приближаемся
             else if (distance > this.attackRange) {
-                // console.log(`[ДВИЖЕНИЕ] Лучник ${this.team} слишком далеко (${distance} > ${this.attackRange}), приближается!`);
                 this.moveCloserToTarget(delta);
                 return;
             }
@@ -1053,7 +1052,136 @@ if (!this.isAlive) {
         });
     }
     
+    // Метод для создания эффекта огненного шара для Мага Огня
+createFireballEffect() {
+    if (!this.target) return;
     
+    // Создаем огненный шар (круг)
+    const fireball = new PIXI.Graphics();
+    fireball.beginFill(0xFF5500); // Ярко-оранжевый цвет
+    fireball.drawCircle(0, 0, 8); // Размер огненного шара
+    fireball.endFill();
+    
+    // Добавляем свечение вокруг шара
+    fireball.beginFill(0xFF9900, 0.5);
+    fireball.drawCircle(0, 0, 12);
+    fireball.endFill();
+    
+    // Добавляем огненный шар в контейнер эффектов
+    this.attackEffects.addChild(fireball);
+    
+    // Определяем начальную и конечную позиции
+    const startX = 0;
+    const startY = 0;
+    const endX = this.target.x - this.x;
+    const endY = this.target.y - this.y;
+    
+    // Устанавливаем начальную позицию
+    fireball.position.set(startX, startY);
+    
+    // Задаем длительность полета
+    const duration = 0.4;
+    
+    // Анимируем полет огненного шара
+    gsap.to(fireball.position, {
+        x: endX,
+        y: endY,
+        duration: duration,
+        ease: "none", // Линейное движение
+        onComplete: () => {
+            // Удаляем огненный шар после достижения цели
+            if (this.attackEffects && !this.attackEffects.destroyed && 
+                this.attackEffects.children.includes(fireball)) {
+                this.attackEffects.removeChild(fireball);
+            }
+            
+            // Создаем эффект взрыва
+            this.createExplosionEffect(endX, endY);
+            
+            // Наносим урон всем врагам в радиусе взрыва
+            this.dealSplashDamage(endX, endY);
+        }
+    });
+    
+    // Анимируем пульсацию огненного шара во время полета
+    gsap.to(fireball.scale, {
+        x: 1.3,
+        y: 1.3,
+        duration: duration / 4,
+        repeat: 3,
+        yoyo: true
+    });
+}
+
+// Метод для создания эффекта взрыва
+createExplosionEffect(x, y) {
+    // Получаем радиус сплеш-урона
+    const explosionRadius = CHARACTER_STATS[CHARACTER_TYPES.FIREMAGE].splashRadius;
+    
+    // Создаем эффект взрыва (большой круг)
+    const explosion = new PIXI.Graphics();
+    explosion.beginFill(0xFF3300, 0.8); // Красно-оранжевый цвет
+    explosion.drawCircle(x, y, explosionRadius / 2); // Размер взрыва
+    explosion.endFill();
+    
+    // Добавляем свечение вокруг взрыва
+    explosion.beginFill(0xFF9900, 0.4);
+    explosion.drawCircle(x, y, explosionRadius);
+    explosion.endFill();
+    
+    // Добавляем эффект взрыва в контейнер
+    this.attackEffects.addChild(explosion);
+    
+    // Анимируем исчезновение взрыва
+    gsap.to(explosion, {
+        alpha: 0,
+        duration: 0.1,
+        onComplete: () => {
+            // Удаляем взрыв после исчезновения
+            if (this.attackEffects && !this.attackEffects.destroyed && 
+                this.attackEffects.children.includes(explosion)) {
+                this.attackEffects.removeChild(explosion);
+            }
+        }
+    });
+    
+    // Анимируем увеличение взрыва
+    gsap.to(explosion.scale, {
+        x: 1.5,
+        y: 1.5,
+        duration: 0.3,
+        ease: "power1.out"
+    });
+}
+
+// Метод для нанесения сплеш-урона всем врагам в радиусе взрыва
+dealSplashDamage(explosionX, explosionY) {
+    if (!this.characters || !this.characters.length) return;
+    
+    // Получаем радиус сплеш-урона
+    const splashRadius = CHARACTER_STATS[CHARACTER_TYPES.FIREMAGE].splashRadius;
+    
+    // Проходим по всем персонажам и проверяем, находятся ли они в радиусе взрыва
+    this.characters.forEach(character => {
+        // Пропускаем персонажей из нашей команды и мертвых персонажей
+        if (character.team.toLowerCase() === this.team.toLowerCase() || 
+            !character.isAlive || character === this.target) {
+            return;
+        }
+        
+        // Вычисляем расстояние от взрыва до персонажа
+        const dx = (this.x + explosionX) - character.x;
+        const dy = (this.y + explosionY) - character.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Если персонаж находится в радиусе взрыва
+        if (distance <= splashRadius + character.radius) {
+            // Наносим сплеш-урон (половина от основного урона)
+            const splashDamage = Math.floor(this.attackPower / 2);
+            character.takeDamage(splashDamage, this);
+        }
+    });
+}
     
     // Метод для ограничения движения полем боя
     stayWithinBattlefield() {
@@ -1243,7 +1371,6 @@ moveAwayFromTarget(delta) {
     // Метод для выполнения атаки и нанесения урона
     performAttack() {
         if (!this.target || !this.target.isAlive) {
-            // console.log(`[АТАКА] ${this.type} (${this.team}) не может атаковать: цель отсутствует или мертва`);
             return;
         }
         
@@ -1253,9 +1380,7 @@ moveAwayFromTarget(delta) {
         // Устанавливаем анимацию атаки
         this.currentAnimation = ANIMATION_STATES.ATTACK;
         this.frameIndex = 0;
-        this.updateSpriteFrame(); // Немедленно обновляем кадр
-        
-        // console.log(`[АТАКА] ${this.type} (${this.team}) начинает анимацию атаки на ${this.target.type} (${this.target.team})`);
+        this.updateSpriteFrame();
         
         // Определяем направление к цели
         const angleToTarget = Math.atan2(
@@ -1270,28 +1395,25 @@ moveAwayFromTarget(delta) {
         const animDuration = this.animations[ANIMATION_STATES.ATTACK].duration;
         
         // Создаем таймер, который выполнит атаку после завершения анимации
-        // Используем 80% длительности анимации, чтобы урон наносился в момент удара
         setTimeout(() => {
             // Наносим урон цели
             if (this.target && this.target.isAlive) {
-                // console.log(`[АТАКА] ${this.type} (${this.team}) наносит урон ${this.target.type} (${this.target.team}), урон: ${this.attackPower}`);
                 this.target.takeDamage(this.attackPower, this);
                 
                 // Создаем эффект атаки в зависимости от типа персонажа
                 if (this.type === CHARACTER_TYPES.ARCHER) {
                     this.createArrowEffect();
+                } else if (this.type === CHARACTER_TYPES.FIREMAGE) {
+                    this.createFireballEffect();
                 } else {
                     this.createMeleeEffect();
                 }
-            } else {
-                // console.log(`[АТАКА] ${this.type} (${this.team}) не может нанести урон: цель пропала или умерла`);
             }
-        }, animDuration * 0.6 * 1000); // Наносим урон на 60% времени анимации
+        }, animDuration * 0.6 * 1000);
         
         // Сбрасываем флаг атаки после завершения анимации
         setTimeout(() => {
             this.isAttacking = false;
-            // console.log(`[АТАКА] ${this.type} (${this.team}) завершил анимацию атаки`);
         }, animDuration * 1000);
     }
     
@@ -1382,8 +1504,16 @@ class Assassin extends Character {
     }
 }
 
+// FireMage class
+class FireMage extends Character {
+    constructor(team, x, y) {
+        super(CHARACTER_TYPES.FIREMAGE, team, x, y);
+    }
+}
+
 // Экспортируем классы в глобальную область видимости
 window.Character = Character;
 window.Warrior = Warrior;
 window.Archer = Archer;
 window.Assassin = Assassin;
+window.FireMage = FireMage;

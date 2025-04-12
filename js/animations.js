@@ -294,6 +294,54 @@ window.NEW_ASSASSIN_ANIMATIONS = {
     }
 };
 
+window.NEW_FIREMAGE_ANIMATIONS = {
+    // Состояние покоя (7 кадров)
+    idle: {
+        frames: [
+            {row: 0, col: 0}, {row: 0, col: 1}, {row: 0, col: 2},
+            {row: 0, col: 3}, {row: 0, col: 4}, {row: 0, col: 5},
+            {row: 0, col: 6}
+        ],
+        duration: 0.9,
+        loop: true
+    },
+    // Ходьба (8 кадров)
+    walk: {
+        frames: [
+            {row: 1, col: 0}, {row: 1, col: 1}, {row: 1, col: 2}, {row: 1, col: 3},
+            {row: 1, col: 4}, {row: 1, col: 5}, {row: 1, col: 6}, {row: 1, col: 7}
+        ],
+        duration: 0.8,
+        loop: true
+    },
+    // Атака (8 кадров)
+    attack: {
+        frames: [
+            {row: 2, col: 0}, {row: 2, col: 1}, {row: 2, col: 2}, {row: 2, col: 3},
+            {row: 2, col: 4}, {row: 2, col: 5}, {row: 2, col: 6}, {row: 2, col: 7}
+        ],
+        duration: 0.7,
+        loop: false
+    },
+    // Получение урона (3 кадра)
+    hurt: {
+        frames: [
+            {row: 3, col: 0}, {row: 3, col: 1}, {row: 3, col: 2}
+        ],
+        duration: 0.3,
+        loop: false
+    },
+    // Смерть (6 кадров)
+    death: {
+        frames: [
+            {row: 4, col: 0}, {row: 4, col: 1}, {row: 4, col: 2},
+            {row: 4, col: 3}, {row: 4, col: 4}, {row: 4, col: 5}
+        ],
+        duration: 0.9,
+        loop: false
+    }
+};
+
 // Состояния анимации
 window.ANIMATION_STATES = {
     IDLE: 'idle',

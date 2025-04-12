@@ -165,16 +165,36 @@ window.BattlefieldManager = class BattlefieldManager {
         });
         this.enemyCharacters = [];
         
-        // Generate 6 random enemies
-        for (let i = 0; i < TOTAL_SLOTS; i++) {
+        // Генерируем случайный тип персонажа с учетом новых классов
+        const randomType = () => {
+            const rand = Math.random();
+            if (rand < 0.25) {
+                return CHARACTER_TYPES.WARRIOR;
+            } else if (rand < 0.5) {
+                return CHARACTER_TYPES.ARCHER;
+            } else if (rand < 0.75) {
+                return CHARACTER_TYPES.ASSASSIN;
+            } else {
+                return CHARACTER_TYPES.FIREMAGE;
+            }
+        };
+        
+        // Определяем количество врагов на основе выбранной сложности
+        const difficulty = game.selectedDifficulty || DIFFICULTY.EASY;
+        const enemyCount = ENEMIES_BY_DIFFICULTY[difficulty];
+        
+        console.log(`Generating ${enemyCount} enemies for difficulty: ${difficulty}`);
+        
+        // Generate the specified number of random enemies
+        for (let i = 0; i < enemyCount; i++) {
             // Random position within battlefield
             const angle = Math.random() * Math.PI * 2;
             const distance = Math.random() * (BATTLEFIELD_RADIUS - 50);
             const x = GAME_WIDTH / 2 + Math.cos(angle) * distance;
             const y = GAME_HEIGHT / 2 + Math.sin(angle) * distance;
             
-            // Random type
-            const type = Math.random() < 0.5 ? CHARACTER_TYPES.WARRIOR : CHARACTER_TYPES.ARCHER;
+            // Используем новый метод для выбора случайного типа
+            const type = randomType();
             
             // Создаем врага используя класс Character
             const enemy = new Character(type, TEAMS.ENEMY, x, y);
