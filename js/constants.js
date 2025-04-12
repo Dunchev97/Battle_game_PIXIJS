@@ -20,21 +20,21 @@ const CHARACTER_STATS = {
     [CHARACTER_TYPES.WARRIOR]: {
         health: 150,
         attack: 20,
-        speed: 20, // Увеличено в 10 раз (5 * 2)
-        attackRange: 100, // Увеличена дистанция атаки в 2 раза
-        attackCooldown: 1.5,
+        speed: 40, 
+        attackRange: 1, 
+        attackCooldown: 1,
         color: 0x3366ff,
-        radius: 60 // Увеличен радиус в 3 раза
+        radius: 70 
     },
     [CHARACTER_TYPES.ARCHER]: {
         health: 100,
         attack: 30,
-        speed: 15, // Увеличено в 10 раз (5 * 2)
-        attackRange: 400, // Увеличена дистанция атаки в 2 раза
-        attackCooldown: 2,
-        safeDistance: 120, // Увеличена безопасная дистанция в 2 раза
+        speed: 25, 
+        attackRange: 250, 
+        attackCooldown: 1.5,
+        safeDistance: 10, 
         color: 0x33cc33,
-        radius: 54 // Увеличен радиус в 3 раза
+        radius: 70 
     }
 };
 

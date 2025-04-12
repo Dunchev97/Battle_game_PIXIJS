@@ -23,7 +23,7 @@ window.ARCHER_ANIMATIONS = {
             {row: 0, col: 0}, {row: 0, col: 1}, {row: 0, col: 2}, 
             {row: 0, col: 3}, {row: 0, col: 4}, {row: 0, col: 5}
         ],
-        duration: 1.5, // длительность анимации в секундах
+        duration: 0.8, // длительность анимации в секундах
         loop: true     // зацикленная анимация
     },
     // Ходьба
@@ -32,7 +32,7 @@ window.ARCHER_ANIMATIONS = {
             {row: 1, col: 0}, {row: 1, col: 1}, {row: 1, col: 2}, {row: 1, col: 3}, 
             {row: 1, col: 4}, {row: 1, col: 5}, {row: 1, col: 6}, {row: 1, col: 7}
         ],
-        duration: 0.8,
+        duration: 0.7,
         loop: true
     },
     // Атака
@@ -41,7 +41,7 @@ window.ARCHER_ANIMATIONS = {
             {row: 2, col: 0}, {row: 2, col: 1}, {row: 2, col: 2}, {row: 2, col: 3}, 
             {row: 2, col: 4}, {row: 2, col: 5}, {row: 2, col: 6}, {row: 2, col: 7}
         ],
-        duration: 0.8,
+        duration: 0.5,
         loop: false
     },
     // Получение урона
@@ -49,7 +49,7 @@ window.ARCHER_ANIMATIONS = {
         frames: [
             {row: 3, col: 0}, {row: 3, col: 1}, {row: 3, col: 2}, {row: 3, col: 3}
         ],
-        duration: 0.4,
+        duration: 0.3,
         loop: false
     },
     // Смерть
@@ -57,7 +57,7 @@ window.ARCHER_ANIMATIONS = {
         frames: [
             {row: 4, col: 0}, {row: 4, col: 1}, {row: 4, col: 2}, {row: 4, col: 3}
         ],
-        duration: 1,
+        duration: 0.8,
         loop: false
     }
 };
@@ -70,7 +70,7 @@ window.WARRIOR_ANIMATIONS = {
             {row: 0, col: 0}, {row: 0, col: 1}, {row: 0, col: 2}, 
             {row: 0, col: 3}, {row: 0, col: 4}, {row: 0, col: 5}
         ],
-        duration: 1.5,
+        duration: 0.8,
         loop: true
     },
     // Ходьба
@@ -79,7 +79,7 @@ window.WARRIOR_ANIMATIONS = {
             {row: 1, col: 0}, {row: 1, col: 1}, {row: 1, col: 2}, {row: 1, col: 3}, 
             {row: 1, col: 4}, {row: 1, col: 5}, {row: 1, col: 6}, {row: 1, col: 7}
         ],
-        duration: 0.8,
+        duration: 0.6,
         loop: true
     },
     // Атака
@@ -88,7 +88,7 @@ window.WARRIOR_ANIMATIONS = {
             {row: 2, col: 0}, {row: 2, col: 1}, {row: 2, col: 2}, 
             {row: 2, col: 3}, {row: 2, col: 4}, {row: 2, col: 5}
         ],
-        duration: 0.6,
+        duration: 0.2,
         loop: false
     },
     // Получение урона
@@ -96,7 +96,7 @@ window.WARRIOR_ANIMATIONS = {
         frames: [
             {row: 3, col: 0}, {row: 3, col: 1}, {row: 3, col: 2}, {row: 3, col: 3}
         ],
-        duration: 0.4,
+        duration: 0.3,
         loop: false
     },
     // Смерть
@@ -104,7 +104,7 @@ window.WARRIOR_ANIMATIONS = {
         frames: [
             {row: 4, col: 0}, {row: 4, col: 1}, {row: 4, col: 2}, {row: 4, col: 3}
         ],
-        duration: 1,
+        duration: 0.8,
         loop: false
     }
 };

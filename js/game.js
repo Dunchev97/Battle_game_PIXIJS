@@ -39,10 +39,10 @@ class Game {
     update(delta) {
         // Если мы в режиме битвы, обновляем персонажей
         if (this.state === GAME_STATES.BATTLE) {
-            console.log(`[ИГРА] Обновление в режиме битвы, delta: ${delta}`);
+            // console.log(`[ИГРА] Обновление в режиме битвы, delta: ${delta}`);
             this.battlefield.update(delta);
         } else {
-            console.log(`[ИГРА] Текущий режим: ${this.state}, не обновляем персонажей`);
+            // console.log(`[ИГРА] Текущий режим: ${this.state}, не обновляем персонажей`);
         }
     }
     

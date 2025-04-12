@@ -163,7 +163,7 @@ window.UIManager = class UIManager {
     
     // Проверяем, достаточно ли персонажей размещено на поле боя
     checkEnoughCharactersPlaced(placedCount) {
-        console.log(`[ИНТЕРФЕЙС] Проверка количества размещенных персонажей: ${placedCount}/${BATTLEFIELD_CHARACTERS}`);
+        // console.log(`[ИНТЕРФЕЙС] Проверка количества размещенных персонажей: ${placedCount}/${BATTLEFIELD_CHARACTERS}`);
         
         // Если размещено достаточно персонажей, показываем кнопку "Начать бой"
         if (placedCount >= BATTLEFIELD_CHARACTERS) {
@@ -286,77 +286,77 @@ window.UIManager = class UIManager {
     }
     
     // Создаем иконку персонажа с анимацией idle
-createCharacterIcon(type) {
-    const container = new PIXI.Container();
-    
-    try {
-        // Создаем спрайт для иконки персонажа
-        const characterSprite = new PIXI.Sprite();
-        characterSprite.anchor.set(0.5);
-        characterSprite.scale.set(2.5, 2.5); // Значительно увеличен масштаб иконки
-        container.addChild(characterSprite);
+    createCharacterIcon(type) {
+        const container = new PIXI.Container();
         
-        // Получаем анимацию idle для данного типа персонажа
-        const animations = type === CHARACTER_TYPES.WARRIOR ? WARRIOR_ANIMATIONS : ARCHER_ANIMATIONS;
-        
-        if (!animations || !animations.idle) {
-            throw new Error(`[СПРАЙТЫ] Не удалось найти анимацию idle для ${type}`);
-        }
-        
-        const idleAnimation = animations.idle;
-        
-        // Создаем статичную иконку с первым кадром анимации idle
-        if (type === CHARACTER_TYPES.WARRIOR) {
-            characterSprite.texture = PIXI.Texture.from('images/warrior_icon.png');
-        } else {
-            characterSprite.texture = PIXI.Texture.from('images/archer_icon.png');
-        }
-        
-        console.log(`[СПРАЙТЫ] Создана иконка для ${type}`);
-        
-        // Добавляем анимацию пульсации
-        let scale = 1.0;
-        let growing = true;
-        
-        const pulseAnimation = () => {
-            if (growing) {
-                scale += 0.01;
-                if (scale >= 1.1) growing = false;
-            } else {
-                scale -= 0.01;
-                if (scale <= 0.9) growing = true;
+        try {
+            // Создаем спрайт для иконки персонажа
+            const characterSprite = new PIXI.Sprite();
+            characterSprite.anchor.set(0.5);
+            characterSprite.scale.set(2.5, 2.5); // Значительно увеличен масштаб иконки
+            container.addChild(characterSprite);
+            
+            // Получаем анимацию idle для данного типа персонажа
+            const animations = type === CHARACTER_TYPES.WARRIOR ? WARRIOR_ANIMATIONS : ARCHER_ANIMATIONS;
+            
+            if (!animations || !animations.idle) {
+                throw new Error(`[СПРАЙТЫ] Не удалось найти анимацию idle для ${type}`);
             }
             
-            characterSprite.scale.set(scale * 2.5, scale * 2.5); // Увеличен масштаб иконки
-        };
-        
-        // Запускаем анимацию пульсации
-        const animationInterval = setInterval(pulseAnimation, 50);
-        container.animationInterval = animationInterval;
-        
-    } catch (error) {
-        console.error(`[СПРАЙТЫ] Ошибка при создании иконки: ${error.message}`);
-        
-        // Создаем запасной вариант - цветной круг
-        const graphics = new PIXI.Graphics();
-        
-        if (type === CHARACTER_TYPES.WARRIOR) {
-            // Красный круг для воина
-            graphics.beginFill(0xFF0000);
-            graphics.drawCircle(0, 0, 20);
-            graphics.endFill();
-        } else {
-            // Синий круг для лучника
-            graphics.beginFill(0x0000FF);
-            graphics.drawCircle(0, 0, 20);
-            graphics.endFill();
+            const idleAnimation = animations.idle;
+            
+            // Создаем статичную иконку с первым кадром анимации idle
+            if (type === CHARACTER_TYPES.WARRIOR) {
+                characterSprite.texture = PIXI.Texture.from('images/warrior_icon.png');
+            } else {
+                characterSprite.texture = PIXI.Texture.from('images/archer_icon.png');
+            }
+            
+            // console.log(`[СПРАЙТЫ] Создана иконка для ${type}`);
+            
+            // Добавляем анимацию пульсации
+            let scale = 1.0;
+            let growing = true;
+            
+            const pulseAnimation = () => {
+                if (growing) {
+                    scale += 0.01;
+                    if (scale >= 1.1) growing = false;
+                } else {
+                    scale -= 0.01;
+                    if (scale <= 0.9) growing = true;
+                }
+                
+                characterSprite.scale.set(scale * 2.5, scale * 2.5); // Увеличен масштаб иконки
+            };
+            
+            // Запускаем анимацию пульсации
+            const animationInterval = setInterval(pulseAnimation, 50);
+            container.animationInterval = animationInterval;
+            
+        } catch (error) {
+            console.error(`[СПРАЙТЫ] Ошибка при создании иконки: ${error.message}`);
+            
+            // Создаем запасной вариант - цветной круг
+            const graphics = new PIXI.Graphics();
+            
+            if (type === CHARACTER_TYPES.WARRIOR) {
+                // Красный круг для воина
+                graphics.beginFill(0xFF0000);
+                graphics.drawCircle(0, 0, 20);
+                graphics.endFill();
+            } else {
+                // Синий круг для лучника
+                graphics.beginFill(0x0000FF);
+                graphics.drawCircle(0, 0, 20);
+                graphics.endFill();
+            }
+            
+            container.addChild(graphics);
         }
         
-        container.addChild(graphics);
+        return container;
     }
-    
-    return container;
-}
     
     // Update character type selection buttons
     updateCharacterTypeButtons() {
