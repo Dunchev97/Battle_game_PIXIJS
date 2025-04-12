@@ -327,7 +327,7 @@ window.UIManager = class UIManager {
                     if (scale <= 0.9) growing = true;
                 }
                 
-                characterSprite.scale.set(scale * 2.5, scale * 2.5); // Увеличен масштаб иконки
+                characterSprite.scale.set(scale, scale); // Увеличен масштаб иконки
             };
             
             // Запускаем анимацию пульсации

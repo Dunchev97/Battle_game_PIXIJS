@@ -59,13 +59,14 @@ window.Character = class Character {
         // Загружаем спрайт-лист в зависимости от типа персонажа
         let spriteSheetPath = '';
         
+        // Используем новые спрайты вместо старых
         if (this.type === CHARACTER_TYPES.WARRIOR) {
-            spriteSheetPath = 'images/warrior_spritesheet.png';
-            this.animations = WARRIOR_ANIMATIONS;
+            spriteSheetPath = 'images/Knight_1_Spritesheet1.png'; // Новый путь к спрайту воина
+            this.animations = NEW_WARRIOR_ANIMATIONS; // Используем новые анимации
             // console.log(`[СПРАЙТЫ] Загрузка спрайтшита воина: ${spriteSheetPath}`);
         } else {
-            spriteSheetPath = 'images/archer_spritesheet.png';
-            this.animations = ARCHER_ANIMATIONS;
+            spriteSheetPath = 'images/Samurai_Archer_SpriteSheet.png'; // Новый путь к спрайту лучника
+            this.animations = NEW_ARCHER_ANIMATIONS; // Используем новые анимации
             // console.log(`[СПРАЙТЫ] Загрузка спрайтшита лучника: ${spriteSheetPath}`);
         }
         
@@ -81,9 +82,9 @@ window.Character = class Character {
             console.error(`Error loading spritesheet: ${spriteSheetPath}`, error);
         });
         
-        // Получаем координаты первого кадра анимации IDLE
+        // Получаем координаты первого кадра анимации IDLE (используем новую функцию)
         const idleAnim = this.animations[ANIMATION_STATES.IDLE];
-        const frame = getFrameCoordinates(idleAnim.frames, 0);
+        const frame = getNewFrameCoordinates(idleAnim.frames, 0);
         // console.log(`[СПРАЙТЫ] Начальный кадр для ${this.type}: x=${frame.x}, y=${frame.y}, w=${frame.width}, h=${frame.height}`);
         
         // Создаем текстуру для первого кадра
@@ -128,8 +129,6 @@ window.Character = class Character {
         
         // Задаем имя для полосы здоровья, чтобы можно было найти ее позже
         this.healthBar.name = 'healthBar';
-        
-        
         
         this.container.addChild(this.outline);
         this.container.addChild(this.sprite);
@@ -245,39 +244,42 @@ window.Character = class Character {
     }
     
     // Метод для обновления кадра спрайта
-    updateSpriteFrame() {
-        try {
-            if (!this.animations || !this.animations[this.currentAnimation]) {
-                console.error(`[АНИМАЦИЯ] Не найдена анимация ${this.currentAnimation} для ${this.type}`);
-                return;
-            }
-            
-            // Получаем текущую анимацию и кадр
-            const currentAnim = this.animations[this.currentAnimation];
-            const frameIndex = Math.min(this.frameIndex, currentAnim.frames.length - 1);
-            const frame = getFrameCoordinates(currentAnim.frames, frameIndex);
-            
-            // Создаем новую текстуру для кадра
-            const texture = new PIXI.Texture(
-                this.baseTexture,
-                new PIXI.Rectangle(frame.x, frame.y, frame.width, frame.height)
-            );
-            
-            // Обновляем текстуру спрайта
-            this.characterSprite.texture = texture;
-            
-            // console.log(`[АНИМАЦИЯ] Обновлена текстура для ${this.type} (${this.team}): кадр ${frameIndex}, анимация ${this.currentAnimation}`);
-            // console.log(`  - Координаты кадра: x=${frame.x}, y=${frame.y}, w=${frame.width}, h=${frame.height}`);
-        } catch (error) {
-            console.error('Error updating sprite frame:', error, {
-                type: this.type,
-                animation: this.currentAnimation,
-                frameIndex: this.frameIndex,
-                hasAnimations: !!this.animations,
-                animationKeys: this.animations ? Object.keys(this.animations) : []
-            });
+    // Метод для обновления кадра спрайта
+updateSpriteFrame() {
+    try {
+        if (!this.animations || !this.animations[this.currentAnimation]) {
+            console.error(`[АНИМАЦИЯ] Не найдена анимация ${this.currentAnimation} для ${this.type}`);
+            return;
         }
+        
+        // Получаем текущую анимацию и кадр
+        const currentAnim = this.animations[this.currentAnimation];
+        const frameIndex = Math.min(this.frameIndex, currentAnim.frames.length - 1);
+        
+        // Используем функцию getNewFrameCoordinates вместо getFrameCoordinates
+        const frame = getNewFrameCoordinates(currentAnim.frames, frameIndex);
+        
+        // Создаем новую текстуру для кадра
+        const texture = new PIXI.Texture(
+            this.baseTexture,
+            new PIXI.Rectangle(frame.x, frame.y, frame.width, frame.height)
+        );
+        
+        // Обновляем текстуру спрайта
+        this.characterSprite.texture = texture;
+        
+        // console.log(`[АНИМАЦИЯ] Обновлена текстура для ${this.type} (${this.team}): кадр ${frameIndex}, анимация ${this.currentAnimation}`);
+        // console.log(`  - Координаты кадра: x=${frame.x}, y=${frame.y}, w=${frame.width}, h=${frame.height}`);
+    } catch (error) {
+        console.error('Error updating sprite frame:', error, {
+            type: this.type,
+            animation: this.currentAnimation,
+            frameIndex: this.frameIndex,
+            hasAnimations: !!this.animations,
+            animationKeys: this.animations ? Object.keys(this.animations) : []
+        });
     }
+}
     
     // Метод для проверки видимости спрайта
 checkSpriteVisibility() {
@@ -922,6 +924,8 @@ if (!this.isAlive) {
     // Метод для создания эффекта стрелы
     createArrowEffect() {
         // Вычисляем конечную точку для линии пути
+        if (!this.target) return;
+        
         const endX = (this.target.x - this.x);
         const endY = (this.target.y - this.y);
         
@@ -939,24 +943,36 @@ if (!this.isAlive) {
             alpha: 0,
             duration: 0.3,
             onComplete: () => {
-                // Удаляем линию после исчезновения
-                this.attackEffects.removeChild(line);
-                
-                // Создаем небольшой эффект попадания
-                const impact = new PIXI.Graphics();
-                impact.beginFill(0xFFFFFF, 0.7);
-                impact.drawCircle(endX, endY, 3);
-                impact.endFill();
-                this.attackEffects.addChild(impact);
-                
-                // Анимируем исчезновение эффекта попадания
-                gsap.to(impact, {
-                    alpha: 0,
-                    duration: 0.1,
-                    onComplete: () => {
-                        this.attackEffects.removeChild(impact);
+                // Проверяем существование контейнера перед удалением
+                if (this.attackEffects && !this.attackEffects.destroyed && 
+                    this.attackEffects.children.includes(line)) {
+                    // Удаляем линию после исчезновения
+                    this.attackEffects.removeChild(line);
+                    
+                    // Создаем небольшой эффект попадания
+                    const impact = new PIXI.Graphics();
+                    impact.beginFill(0xFFFFFF, 0.7);
+                    impact.drawCircle(endX, endY, 3);
+                    impact.endFill();
+                    
+                    // Проверяем, существует ли еще контейнер эффектов
+                    if (this.attackEffects && !this.attackEffects.destroyed) {
+                        this.attackEffects.addChild(impact);
+                        
+                        // Анимируем исчезновение эффекта попадания
+                        gsap.to(impact, {
+                            alpha: 0,
+                            duration: 0.1,
+                            onComplete: () => {
+                                // Проверяем существование контейнера перед удалением
+                                if (this.attackEffects && !this.attackEffects.destroyed && 
+                                    this.attackEffects.children.includes(impact)) {
+                                    this.attackEffects.removeChild(impact);
+                                }
+                            }
+                        });
                     }
-                });
+                }
             }
         });
     }
@@ -1239,7 +1255,11 @@ moveAwayFromTarget(delta) {
             alpha: 0,
             duration: 0.2,
             onComplete: () => {
-                this.attackEffects.removeChild(attackEffect);
+                // Проверяем существование контейнера перед удалением
+                if (this.attackEffects && !this.attackEffects.destroyed && 
+                    this.attackEffects.children.includes(attackEffect)) {
+                    this.attackEffects.removeChild(attackEffect);
+                }
             }
         });
         
@@ -1249,7 +1269,11 @@ moveAwayFromTarget(delta) {
             scale: 1.5,
             duration: 0.3,
             onComplete: () => {
-                this.attackEffects.removeChild(impact);
+                // Проверяем существование контейнера перед удалением
+                if (this.attackEffects && !this.attackEffects.destroyed && 
+                    this.attackEffects.children.includes(impact)) {
+                    this.attackEffects.removeChild(impact);
+                }
             }
         });
     }
