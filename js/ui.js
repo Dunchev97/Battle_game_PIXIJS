@@ -19,72 +19,84 @@ window.UIManager = class UIManager {
         // Title text
         const titleText = new PIXI.Text('Выберите персонажей', {
             fontFamily: 'Arial',
-            fontSize: 48, // Увеличено в 2 раза с 24 до 48
+            fontSize: 48,
             fill: 0xffffff,
             align: 'center'
         });
         titleText.anchor.set(0.5);
-        titleText.position.set(GAME_WIDTH / 2, 120); // Увеличено для лучшего размещения
+        titleText.position.set(GAME_WIDTH / 2, 120);
         this.container.addChild(titleText);
         
-        // Character type selection buttons
-        const warriorButton = this.createButton('Воин', GAME_WIDTH / 2 - 350, 200, () => { // Увеличено расстояние между кнопками
+        // Character type selection buttons - расширяем для 3 кнопок
+        const buttonSpacing = 400; // Уменьшаем расстояние между кнопками
+        const startX = GAME_WIDTH / 2 - buttonSpacing;
+        
+        // Воин (слева)
+        const warriorButton = this.createButton('Воин', startX, 200, () => {
             this.selectedCharacterType = CHARACTER_TYPES.WARRIOR;
             this.updateCharacterTypeButtons();
         });
         
-        const archerButton = this.createButton('Лучник', GAME_WIDTH / 2 + 350, 200, () => { // Увеличено расстояние между кнопками
+        // Лучник (посередине)
+        const archerButton = this.createButton('Лучник', startX + buttonSpacing, 200, () => {
             this.selectedCharacterType = CHARACTER_TYPES.ARCHER;
+            this.updateCharacterTypeButtons();
+        });
+        
+        // Ассасин (справа)
+        const assassinButton = this.createButton('Ассасин', startX + buttonSpacing * 2, 200, () => {
+            this.selectedCharacterType = CHARACTER_TYPES.ASSASSIN;
             this.updateCharacterTypeButtons();
         });
         
         this.buttons.warrior = warriorButton;
         this.buttons.archer = archerButton;
+        this.buttons.assassin = assassinButton;
         
         // Create character slots
         this.characterSlots = [];
-        const slotSize = 160; // Увеличено в 2 раза с 80 до 160
-        const slotSpacing = 80; // Увеличенный отступ между слотами
-        const startX = (GAME_WIDTH - (slotSize + slotSpacing) * 6) / 2 + slotSize / 2;
+    const slotSize = 160;
+    const slotSpacing = 80;
+    const slotsStartX = (GAME_WIDTH - (slotSize + slotSpacing) * 6) / 2 + slotSize / 2;
+    
+    for (let i = 0; i < TOTAL_SLOTS; i++) {
+        const slot = new PIXI.Graphics();
+        slot.beginFill(0x555555);
+        slot.drawRect(-slotSize / 2, -slotSize / 2, slotSize, slotSize);
+        slot.endFill();
         
-        for (let i = 0; i < TOTAL_SLOTS; i++) {
-            const slot = new PIXI.Graphics();
-            slot.beginFill(0x555555);
-            slot.drawRect(-slotSize / 2, -slotSize / 2, slotSize, slotSize);
-            slot.endFill();
-            
-            slot.position.set(startX + (slotSize + slotSpacing) * i, 350); // Увеличена вертикальная позиция слотов с 200 до 350
-            slot.interactive = true;
-            slot.buttonMode = true;
+        slot.position.set(slotsStartX + (slotSize + slotSpacing) * i, 350);
+        slot.interactive = true;
+        slot.buttonMode = true;
             
             // Slot data
-            slot.characterType = null;
-            slot.index = i;
+        slot.characterType = null;
+        slot.index = i;
             
-            // Click event
-            slot.on('pointerdown', () => {
-                if (this.selectedCharacterType) {
-                    this.assignCharacterToSlot(i, this.selectedCharacterType);
-                }
-            });
-            
-            this.container.addChild(slot);
-            this.characterSlots.push({
-                graphics: slot,
-                characterType: null,
-                characterSprite: null
-            });
-        }
-        
-        // Ready button (initially disabled)
-        const readyButton = this.createButton('Готов', GAME_WIDTH / 2, 550, () => { // Увеличена вертикальная позиция кнопки Готов
-            game.startPlacement();
+             // Click event
+        slot.on('pointerdown', () => {
+            if (this.selectedCharacterType) {
+                this.assignCharacterToSlot(i, this.selectedCharacterType);
+            }
         });
-        readyButton.visible = false;
-        this.buttons.ready = readyButton;
         
-        this.updateCharacterTypeButtons();
+        this.container.addChild(slot);
+        this.characterSlots.push({
+            graphics: slot,
+            characterType: null,
+            characterSprite: null
+        });
     }
+    
+    // Ready button (initially disabled)
+    const readyButton = this.createButton('Готов', GAME_WIDTH / 2, 550, () => {
+        game.startPlacement();
+    });
+    readyButton.visible = false;
+    this.buttons.ready = readyButton;
+    
+    this.updateCharacterTypeButtons();
+}
     
     // Create UI for character placement screen
     createPlacementUI() {
@@ -293,26 +305,17 @@ window.UIManager = class UIManager {
             // Создаем спрайт для иконки персонажа
             const characterSprite = new PIXI.Sprite();
             characterSprite.anchor.set(0.5);
-            characterSprite.scale.set(2.5, 2.5); // Значительно увеличен масштаб иконки
+            characterSprite.scale.set(2.5, 2.5);
             container.addChild(characterSprite);
             
-            // Получаем анимацию idle для данного типа персонажа
-            const animations = type === CHARACTER_TYPES.WARRIOR ? WARRIOR_ANIMATIONS : ARCHER_ANIMATIONS;
-            
-            if (!animations || !animations.idle) {
-                throw new Error(`[СПРАЙТЫ] Не удалось найти анимацию idle для ${type}`);
-            }
-            
-            const idleAnimation = animations.idle;
-            
-            // Создаем статичную иконку с первым кадром анимации idle
+            // Загружаем иконку в зависимости от типа персонажа
             if (type === CHARACTER_TYPES.WARRIOR) {
                 characterSprite.texture = PIXI.Texture.from('images/warrior_icon.png');
-            } else {
+            } else if (type === CHARACTER_TYPES.ARCHER) {
                 characterSprite.texture = PIXI.Texture.from('images/archer_icon.png');
+            } else if (type === CHARACTER_TYPES.ASSASSIN) {
+                characterSprite.texture = PIXI.Texture.from('images/ASSASIN_ICON.png');
             }
-            
-            // console.log(`[СПРАЙТЫ] Создана иконка для ${type}`);
             
             // Добавляем анимацию пульсации
             let scale = 1.0;
@@ -327,7 +330,7 @@ window.UIManager = class UIManager {
                     if (scale <= 0.9) growing = true;
                 }
                 
-                characterSprite.scale.set(scale, scale); // Увеличен масштаб иконки
+                characterSprite.scale.set(scale, scale);
             };
             
             // Запускаем анимацию пульсации
@@ -341,16 +344,17 @@ window.UIManager = class UIManager {
             const graphics = new PIXI.Graphics();
             
             if (type === CHARACTER_TYPES.WARRIOR) {
-                // Красный круг для воина
-                graphics.beginFill(0xFF0000);
-                graphics.drawCircle(0, 0, 20);
-                graphics.endFill();
+                graphics.beginFill(0xFF0000); // Красный для воина
+            } else if (type === CHARACTER_TYPES.ARCHER) {
+                graphics.beginFill(0x0000FF); // Синий для лучника
+            } else if (type === CHARACTER_TYPES.ASSASSIN) {
+                graphics.beginFill(0xFF00FF); // Фиолетовый для ассасина
             } else {
-                // Синий круг для лучника
-                graphics.beginFill(0x0000FF);
-                graphics.drawCircle(0, 0, 20);
-                graphics.endFill();
+                graphics.beginFill(0xCCCCCC); // Серый для неизвестного типа
             }
+            
+            graphics.drawCircle(0, 0, 20);
+            graphics.endFill();
             
             container.addChild(graphics);
         }
@@ -360,15 +364,18 @@ window.UIManager = class UIManager {
     
     // Update character type selection buttons
     updateCharacterTypeButtons() {
-        if (this.selectedCharacterType === CHARACTER_TYPES.WARRIOR) {
+        // Сбрасываем все кнопки
+        if (this.buttons.warrior) this.buttons.warrior.children[0].tint = 0xffffff;
+        if (this.buttons.archer) this.buttons.archer.children[0].tint = 0xffffff;
+        if (this.buttons.assassin) this.buttons.assassin.children[0].tint = 0xffffff;
+        
+        // Подсвечиваем выбранную кнопку
+        if (this.selectedCharacterType === CHARACTER_TYPES.WARRIOR && this.buttons.warrior) {
             this.buttons.warrior.children[0].tint = 0x2196F3;
-            this.buttons.archer.children[0].tint = 0xffffff;
-        } else if (this.selectedCharacterType === CHARACTER_TYPES.ARCHER) {
-            this.buttons.warrior.children[0].tint = 0xffffff;
+        } else if (this.selectedCharacterType === CHARACTER_TYPES.ARCHER && this.buttons.archer) {
             this.buttons.archer.children[0].tint = 0x2196F3;
-        } else {
-            this.buttons.warrior.children[0].tint = 0xffffff;
-            this.buttons.archer.children[0].tint = 0xffffff;
+        } else if (this.selectedCharacterType === CHARACTER_TYPES.ASSASSIN && this.buttons.assassin) {
+            this.buttons.assassin.children[0].tint = 0x2196F3;
         }
     }
     

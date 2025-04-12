@@ -6,9 +6,9 @@ const BATTLEFIELD_RADIUS = 500; // Увеличено в 2 раза с 250 до 
 // Character types
 const CHARACTER_TYPES = {
     WARRIOR: 'warrior',
-    ARCHER: 'archer'
+    ARCHER: 'archer',
+    ASSASSIN: 'assassin'  // Добавляем новый тип персонажа
 };
-
 // Team types
 const TEAM_TYPES = {
     PLAYER: 'player',
@@ -18,13 +18,13 @@ const TEAM_TYPES = {
 // Character stats
 const CHARACTER_STATS = {
     [CHARACTER_TYPES.WARRIOR]: {
-        health: 150,
+        health: 160,
         attack: 20,
         speed: 40, 
         attackRange: 1, 
         attackCooldown: 1,
         color: 0x3366ff,
-        radius: 70 
+        radius: 55 
     },
     [CHARACTER_TYPES.ARCHER]: {
         health: 100,
@@ -34,7 +34,16 @@ const CHARACTER_STATS = {
         attackCooldown: 1.5,
         safeDistance: 10, 
         color: 0x33cc33,
-        radius: 70 
+        radius: 55 
+    },
+    [CHARACTER_TYPES.ASSASSIN]: {  // Добавляем характеристики для Ассасина
+        health: 80,
+        attack: 35,
+        speed: 50, 
+        attackRange: 1, 
+        attackCooldown: 1,
+        color: 0xff0066,  // Розовый цвет для отличия
+        radius: 45 
     }
 };
 

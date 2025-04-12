@@ -61,14 +61,16 @@ window.Character = class Character {
         
         // Используем новые спрайты вместо старых
         if (this.type === CHARACTER_TYPES.WARRIOR) {
-            spriteSheetPath = 'images/Knight_1_Spritesheet1.png'; // Новый путь к спрайту воина
-            this.animations = NEW_WARRIOR_ANIMATIONS; // Используем новые анимации
-            // console.log(`[СПРАЙТЫ] Загрузка спрайтшита воина: ${spriteSheetPath}`);
-        } else {
-            spriteSheetPath = 'images/Samurai_Archer_SpriteSheet.png'; // Новый путь к спрайту лучника
-            this.animations = NEW_ARCHER_ANIMATIONS; // Используем новые анимации
-            // console.log(`[СПРАЙТЫ] Загрузка спрайтшита лучника: ${spriteSheetPath}`);
+            spriteSheetPath = 'images/Knight_1_Spritesheet1.png';
+            this.animations = NEW_WARRIOR_ANIMATIONS;
+        } else if (this.type === CHARACTER_TYPES.ARCHER) {
+            spriteSheetPath = 'images/Samurai_Archer_SpriteSheet.png';
+            this.animations = NEW_ARCHER_ANIMATIONS;
+        } else if (this.type === CHARACTER_TYPES.ASSASSIN) {
+            spriteSheetPath = 'images/Assassin_SpriteSheet.png';
+            this.animations = NEW_ASSASSIN_ANIMATIONS;
         }
+        
         
         // Загружаем базовую текстуру спрайт-листа
         this.baseTexture = PIXI.BaseTexture.from(spriteSheetPath);
@@ -464,24 +466,71 @@ this.updateTarget();
     updateTarget() {
         const candidates = this.characters || (this.battlefield?.characters || []);
         if (!candidates || candidates.length === 0) return;
-    
-        const closest = this.findClosestTarget(candidates);
-        if (!closest) return;
-    
-        // Если цели нет — просто устанавливаем ближайшую
-        if (!this.target || !this.target.isAlive) {
-            this.target = closest;
-            return;
-        }
-    
-        const currentDistance = this.distanceTo(this.target);
-        const newDistance = this.distanceTo(closest);
-    
-        // Если новая цель ближе на 10% или больше — меняем
-        if (newDistance < currentDistance * 0.9) {
-            this.target = closest;
+        
+        // Если это ассасин, то используем специальную логику
+        if (this.type === CHARACTER_TYPES.ASSASSIN) {
+            // Сначала найдем ближайшую цель
+            const closest = this.findClosestTarget(candidates);
+            
+            // Затем найдем цель с наименьшим здоровьем
+            const weakest = this.findTargetWithLowestHealth(candidates);
+            
+            // Если нет ни одной цели
+            if (!closest && !weakest) return;
+            
+            // Если нет текущей цели или она мертва
+            if (!this.target || !this.target.isAlive) {
+                // Если есть цель с наименьшим здоровьем, выбираем ее
+                if (weakest) {
+                    this.target = weakest;
+                } else {
+                    // Иначе берем ближайшую
+                    this.target = closest;
+                }
+                return;
+            }
+            
+            // Если текущая цель хороша, держимся за нее
+            if (this.target && this.target.isAlive) {
+                const currentDistance = this.distanceTo(this.target);
+                
+                // Если текущая цель далеко, ищем ближайшую
+                if (currentDistance > this.attackRange * 5) {
+                    if (closest && this.distanceTo(closest) < currentDistance * 0.7) {
+                        this.target = closest;
+                        return;
+                    }
+                }
+                
+                // Если есть более слабая цель и она не слишком далеко
+                if (weakest && weakest !== this.target && 
+                    weakest.health < this.target.health * 0.7 && 
+                    this.distanceTo(weakest) < this.attackRange * 10) {
+                    this.target = weakest;
+                    return;
+                }
+            }
+        } else {
+            // Стандартная логика для других типов персонажей
+            const closest = this.findClosestTarget(candidates);
+            if (!closest) return;
+            
+            // Если цели нет — просто устанавливаем ближайшую
+            if (!this.target || !this.target.isAlive) {
+                this.target = closest;
+                return;
+            }
+            
+            const currentDistance = this.distanceTo(this.target);
+            const newDistance = this.distanceTo(closest);
+            
+            // Если новая цель ближе на 10% или больше — меняем
+            if (newDistance < currentDistance * 0.9) {
+                this.target = closest;
+            }
         }
     }
+    
     
     // Метод для поиска ближайшей цели
     findClosestTarget(characters) {
@@ -574,6 +623,33 @@ this.updateTarget();
         return closestTarget;
     }
     
+// Добавляем новый метод для Ассасина, чтобы выбирать цель с наименьшим здоровьем
+findTargetWithLowestHealth(characters) {
+    if (!characters || characters.length === 0) return null;
+    
+    let lowestHealthTarget = null;
+    let lowestHealth = Infinity;
+    
+    for (let i = 0; i < characters.length; i++) {
+        const character = characters[i];
+        
+        // Пропускаем персонажей из нашей команды, мертвых и самих себя
+        if (!character || !character.team || 
+            character.team.toLowerCase() === this.team.toLowerCase() || 
+            !character.isAlive || character === this) {
+            continue;
+        }
+        
+        // Если это ассасин и цель имеет меньше здоровья, чем предыдущая найденная
+        if (character.health < lowestHealth) {
+            lowestHealth = character.health;
+            lowestHealthTarget = character;
+        }
+    }
+    
+    return lowestHealthTarget;
+}
+
     // Метод для вычисления расстояния до другого персонажа
     distanceTo(character) {
         if (!character) return Infinity;
@@ -1299,9 +1375,15 @@ class Archer extends Character {
     }
 }
 
-
+// Assassin class
+class Assassin extends Character {
+    constructor(team, x, y) {
+        super(CHARACTER_TYPES.ASSASSIN, team, x, y);
+    }
+}
 
 // Экспортируем классы в глобальную область видимости
 window.Character = Character;
 window.Warrior = Warrior;
 window.Archer = Archer;
+window.Assassin = Assassin;
