@@ -17,6 +17,15 @@ window.Character = class Character {
         this.attackCooldown = 0; // Устанавливаем начальный кулдаун в 0, чтобы позволить атаковать сразу
         this.color = stats.color;
         this.radius = stats.radius;
+        // Энергия
+        this.energy = 0;
+        this.maxEnergy = 100;
+        this.energyRegenRate = 25; // 100 за 4 сек
+        // Эффекты контроля
+        this.stunnedUntil = 0;
+        this.rootUntil = 0;
+        this.fireCircleDamage = null; // {until, dps}
+
         
         // Battle properties
         this.target = null;
@@ -40,6 +49,21 @@ window.Character = class Character {
         this.attackEffects = new PIXI.Container();
         
         this.initGraphics();
+        // Способность по типу
+        switch(this.type) {
+            case CHARACTER_TYPES.WARRIOR:
+                this.ability = new WarriorChainsAbility(this);
+                break;
+            case CHARACTER_TYPES.ARCHER:
+                this.ability = new ArcherPowerShotAbility(this);
+                break;
+            case CHARACTER_TYPES.ASSASSIN:
+                this.ability = new AssassinDashAbility(this);
+                break;
+            case CHARACTER_TYPES.FIREMAGE:
+                this.ability = new FireMageFireCircleAbility(this);
+                break;
+        }
     }
     
     initGraphics() {
@@ -248,9 +272,8 @@ window.Character = class Character {
         }
     }
     
-    // Метод для обновления кадра спрайта
-    // Метод для обновления кадра спрайта
-updateSpriteFrame() {
+  // Метод для обновления кадра спрайта
+  updateSpriteFrame() {
     try {
         if (!this.animations || !this.animations[this.currentAnimation]) {
             console.error(`[АНИМАЦИЯ] Не найдена анимация ${this.currentAnimation} для ${this.type}`);
@@ -286,7 +309,7 @@ updateSpriteFrame() {
     }
 }
     
-    // Метод для проверки видимости спрайта
+// Метод для проверки видимости спрайта
 checkSpriteVisibility() {
     if (!this.characterSprite) return;
     
@@ -318,15 +341,70 @@ checkSpriteVisibility() {
 }
     
     // Метод для обновления персонажа
+    // Проверка наличия энергии
+    hasEnoughEnergy(amount) {
+        return this.energy >= amount;
+    }
+    // Расход энергии
+    spendEnergy(amount) {
+        if (this.energy >= amount) {
+            this.energy -= amount;
+            if (this.energy < 0) this.energy = 0;
+            if (typeof this.updateEnergyBar === 'function') this.updateEnergyBar();
+            return true;
+        }
+        return false;
+    }
+
     update(delta, characters) {
+        const now = performance.now()/1000;
+        // Восстановление энергии только в бою
+        if (game && game.state === GAME_STATES.BATTLE && this.energy < this.maxEnergy) {
+            this.energy += this.energyRegenRate * delta;
+            if (this.energy > this.maxEnergy) this.energy = this.maxEnergy;
+            this.updateEnergyBar();
+        }
+        
+        // Автоматическое использование способности
+        if (this.isAlive && this.ability && this.energy >= 100 && this.ability.canUse(this.target, now)) {
+            this.ability.use(this.target, now);
+        }
+        
+        // Эффекты контроля
+        if (this.stunnedUntil && now < this.stunnedUntil) {
+            // Анимируем оглушение, но не позволяем персонажу двигаться или атаковать
+            this.updateAnimation(delta);
+            return;
+        }
+        
+        if (this.rootUntil && now < this.rootUntil) {
+            // Рут — не может двигаться, но может атаковать
+            if (this.target && this.target.isAlive && this.distanceTo(this.target) <= this.attackRange) {
+                if (this.attackCooldown <= 0) {
+                    this.performAttack();
+                    this.attackCooldown = this.attackCooldownReset;
+                } else {
+                    this.attackCooldown -= delta;
+                }
+            }
+            this.updateAnimation(delta);
+            return;
+        }
+        
+        if (this.fireCircleDamage && now < this.fireCircleDamage.until) {
+            if (!this._lastFireTick || now - this._lastFireTick > 1) {
+                this.takeDamage(this.fireCircleDamage.dps, null);
+                this._lastFireTick = now;
+            }
+        } else {
+            this.fireCircleDamage = null;
+        }
+    
         // Если персонаж мертв, но все еще проигрывает анимацию смерти
         if (!this.isAlive) {
             if (this.currentAnimation === ANIMATION_STATES.DEATH) {
                 // Продолжаем обновлять анимацию смерти
                 this.updateAnimation(delta);
-                // console.log(`[ОБНОВЛЕНИЕ СМЕРТИ] ${this.type} (${this.team}) обновляет анимацию смерти, кадр ${this.frameIndex}`);
-            } else {
-                // console.log(`[ОБНОВЛЕНИЕ] ${this.type} (${this.team}) не обновляется, так как мертв`);
             }
             return;
         }
@@ -425,6 +503,79 @@ this.updateTarget();
         this.checkSpriteVisibility();
     }
     
+
+    // Добавление индикатора готовности способности
+createAbilityIndicator() {
+    if (!this.abilityIndicator && this.ability) {
+        // Создаем индикатор готовности способности
+        this.abilityIndicator = new PIXI.Graphics();
+        this.container.addChild(this.abilityIndicator);
+        
+        // Размещаем его над полосой здоровья и энергии
+        this.updateAbilityIndicator();
+    }
+}
+
+// Метод для обновления индикатора способности
+updateAbilityIndicator() {
+    if (!this.abilityIndicator || !this.ability) return;
+    
+    // Очищаем индикатор
+    this.abilityIndicator.clear();
+    
+    const now = performance.now()/1000;
+    const cooldownRemaining = Math.max(0, this.ability.lastUseTime + this.ability.cooldown - now);
+    const isReady = this.energy >= 100 && cooldownRemaining <= 0;
+    
+    // Рисуем фон индикатора
+    const bgColor = isReady ? 0x00FF00 : 0x777777;
+    this.abilityIndicator.beginFill(bgColor, 0.5);
+    this.abilityIndicator.drawCircle(0, -this.radius - 20, 8);
+    this.abilityIndicator.endFill();
+    
+    // Если способность готова - добавляем эффект мерцания
+    if (isReady) {
+        // Добавляем свечение
+        this.abilityIndicator.beginFill(0xFFFFFF, 0.3);
+        this.abilityIndicator.drawCircle(0, -this.radius - 20, 10);
+        this.abilityIndicator.endFill();
+        
+        // Если нет анимации, добавляем её
+        if (!this._indicatorAnimated) {
+            this._indicatorAnimated = true;
+            
+            // Анимация пульсации
+            gsap.to(this.abilityIndicator.scale, {
+                x: 1.2, y: 1.2,
+                duration: 0.5,
+                repeat: -1,
+                yoyo: true
+            });
+        }
+    } else {
+        // Если способность не готова, останавливаем анимацию
+        if (this._indicatorAnimated) {
+            gsap.killTweensOf(this.abilityIndicator.scale);
+            this.abilityIndicator.scale.set(1, 1);
+            this._indicatorAnimated = false;
+        }
+        
+        // Если на кулдауне - показываем прогресс
+        if (cooldownRemaining > 0) {
+            const progress = 1 - (cooldownRemaining / this.ability.cooldown);
+            
+            // Рисуем прогресс в виде растущего сектора
+            this.abilityIndicator.beginFill(0xFFFFFF, 0.7);
+            this.abilityIndicator.moveTo(0, -this.radius - 20);
+            this.abilityIndicator.arc(
+                0, -this.radius - 20, 6,
+                -Math.PI/2, -Math.PI/2 + progress * Math.PI * 2
+            );
+            this.abilityIndicator.endFill();
+        }
+    }
+}
+
     // Метод для поиска цели
     findTarget() {
         // console.log(`[ЦЕЛЬ] Поиск цели для ${this.type} (${this.team})`);
@@ -934,45 +1085,59 @@ if (length > 0) {
         this.currentAnimation = ANIMATION_STATES.DEATH;
         this.frameIndex = 0;
         
-      
+        // Если есть полоса энергии, скрываем ее
+        if (this.energyBar) {
+            this.energyBar.visible = false;
+        }
+        if (this.outline) {
+            this.outline.visible = false;
+            this.outline.alpha = 0;
+            
+            if (this.container && this.container.children.includes(this.outline)) {
+                const index = this.container.children.indexOf(this.outline);
+                if (index !== -1) {
+                    this.container.removeChildAt(index);
+                }
+            }
+        }
     }
-    
-    // Метод для обновления полосы здоровья
+
+    updateEnergyBar() {
+        if (!this.energyBar) {
+            this.energyBar = new PIXI.Graphics();
+            this.container.addChild(this.energyBar);
+        }
+        
+        // Очищаем полосу энергии
+        this.energyBar.clear();
+        
+        // Фон полосы энергии
+        this.energyBar.beginFill(0x444444);
+        this.energyBar.drawRect(-this.radius, -this.radius - 3, this.radius * 2, 4);
+        this.energyBar.endFill();
+        
+        // Оранжевая энергия
+        const energyPercent = Math.max(0, this.energy / this.maxEnergy);
+        this.energyBar.beginFill(0xFFA500);
+        this.energyBar.drawRect(-this.radius, -this.radius - 3, this.radius * 2 * energyPercent, 4);
+        this.energyBar.endFill();
+        
+        // Удаляем текст энергии, если он есть
+        if (this.energyText && this.container.children.includes(this.energyText)) {
+            this.container.removeChild(this.energyText);
+            this.energyText = null;
+        }
+        
+        // Проверяем, есть ли индикатор способности, и создаем его, если нет
+        if (!this.abilityIndicator && this.ability) {
+            this.createAbilityIndicator();
+        }
+        
+        // Обновляем индикатор способности
+        this.updateAbilityIndicator();
+    }
+
     updateHealthBar() {
-
-// Самая первая проверка - если персонаж мертв, принудительно скрываем полосу здоровья
-if (!this.isAlive) {
-    if (this.healthBar) {
-        this.healthBar.visible = false;
-        this.healthBar.alpha = 0;
-        
-        if (this.container && this.container.children.includes(this.healthBar)) {
-            const index = this.container.children.indexOf(this.healthBar);
-            if (index !== -1) {
-                this.container.removeChildAt(index);
-            }
-        }
-    }
-    
-    // Для врагов также скрываем обводку
-    if (this.team === TEAMS.ENEMY && this.outline) {
-        this.outline.visible = false;
-        this.outline.alpha = 0;
-        
-        if (this.container && this.container.children.includes(this.outline)) {
-            const index = this.container.children.indexOf(this.outline);
-            if (index !== -1) {
-                this.container.removeChildAt(index);
-            }
-        }
-    }
-    
-    return;
-}
-
-
-
-        
         // Проверяем, что HP бар добавлен в контейнер
         if (this.container && !this.container.children.includes(this.healthBar)) {
             this.container.addChild(this.healthBar);
@@ -983,7 +1148,7 @@ if (!this.isAlive) {
         
         // Убедимся, что полоса здоровья видима для живых персонажей
         this.healthBar.visible = true;
-        
+    
         // Рисуем фон полосы здоровья
         this.healthBar.beginFill(0x666666);
         this.healthBar.drawRect(-this.radius, -this.radius - 10, this.radius * 2, 5);
@@ -994,10 +1159,44 @@ if (!this.isAlive) {
         this.healthBar.beginFill(0x00ff00);
         this.healthBar.drawRect(-this.radius, -this.radius - 10, this.radius * 2 * healthPercent, 5);
         this.healthBar.endFill();
-    }
     
-    // Метод для создания эффекта стрелы
-    createArrowEffect() {
+        // --- Полоса энергии ---
+        if (!this.energyBar) {
+            this.energyBar = new PIXI.Graphics();
+            this.container.addChild(this.energyBar);
+        }
+        this.energyBar.clear();
+        this.energyBar.visible = true;
+        // Фон полосы энергии
+        this.energyBar.beginFill(0x444444);
+        this.energyBar.drawRect(-this.radius, -this.radius - 3, this.radius * 2, 4);
+        this.energyBar.endFill();
+        // Оранжевая энергия
+        const energyPercent = Math.max(0, this.energy / this.maxEnergy);
+        this.energyBar.beginFill(0xFFA500);
+        this.energyBar.drawRect(-this.radius, -this.radius - 3, this.radius * 2 * energyPercent, 4);
+        this.energyBar.endFill();
+    
+        // --- Число энергии ---
+        if (!this.energyText) {
+            this.energyText = new PIXI.Text('0', {
+                fontFamily: 'Arial',
+                fontSize: 14,
+                fill: 0xFFA500,
+                fontWeight: 'bold',
+                align: 'center',
+                stroke: '#222',
+                strokeThickness: 2
+            });
+            this.energyText.anchor.set(0.5);
+            this.container.addChild(this.energyText);
+        }
+        this.energyText.text = Math.floor(this.energy);
+        this.energyText.position.set(0, -this.radius + 6);
+    }
+
+// Метод для создания эффекта стрелы
+createArrowEffect() {
         // Вычисляем конечную точку для линии пути
         if (!this.target) return;
         
@@ -1328,6 +1527,12 @@ moveAwayFromTarget(delta) {
         const now = Date.now() / 1000; // Current time in seconds
         const distance = this.distanceTo(this.target);
         
+        // Проверяем, не атакует ли персонаж свою текущую команду
+    if (this.target && this.target.team === this.team) {
+        // Если цель в той же команде, не атакуем
+        return false;
+    }
+
         // Check if we can attack
         if (distance <= this.attackRange && 
             now - this.lastAttackTime >= this.attackCooldown) {
@@ -1369,7 +1574,14 @@ moveAwayFromTarget(delta) {
     }
     
     // Метод для выполнения атаки и нанесения урона
-    performAttack() {
+    performAttack(target = null, multiplier = 1) {
+        // multiplier — множитель урона для способностей
+        if (!target) target = this.target;
+        if (!target || !target.isAlive) return;
+        let damage = this.attackPower * multiplier;
+        target.takeDamage(damage, this);
+        if (typeof this.setAnimation === 'function') this.setAnimation('attack');
+    
         if (!this.target || !this.target.isAlive) {
             return;
         }
@@ -1482,6 +1694,7 @@ moveAwayFromTarget(delta) {
     }
     
 }
+
 
 // Warrior class
 class Warrior extends Character {

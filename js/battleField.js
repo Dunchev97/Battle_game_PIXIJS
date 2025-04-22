@@ -11,9 +11,16 @@ window.BattlefieldManager = class BattlefieldManager {
     
     // Create the battlefield
     createBattlefield() {
-        // Only create battlefield if it hasn't been created yet
+        // Создаем поле боя только если оно еще не создано
         if (!this.battlefieldCreated) {
-            // Create battlefield circle
+            // Вычисляем радиус поля боя в зависимости от размера экрана
+            const isMobile = window.isMobile || window.innerWidth < 768;
+            const screenSize = Math.min(GAME_WIDTH, GAME_HEIGHT);
+            
+            // Для мобильных устройств используем меньший радиус
+            window.BATTLEFIELD_RADIUS = isMobile ? screenSize * 0.35 : screenSize * 0.45;
+            
+            // Создаем круглое поле боя
             const battlefield = new PIXI.Graphics();
             battlefield.lineStyle(3, 0xffffff);
             battlefield.beginFill(0x333333);
@@ -23,68 +30,99 @@ window.BattlefieldManager = class BattlefieldManager {
             this.container.addChild(battlefield);
             this.battlefield = battlefield;
             
-            // Make battlefield interactive for character placement
+            // Делаем поле боя интерактивным для размещения персонажей
             battlefield.interactive = true;
             battlefield.hitArea = new PIXI.Circle(GAME_WIDTH / 2, GAME_HEIGHT / 2, BATTLEFIELD_RADIUS);
-            battlefield.on('pointerdown', this.onBattlefieldClick.bind(this));
+            
+            // Добавляем обработчики событий с поддержкой касаний
+            if (isMobile) {
+                battlefield.on('touchstart', this.onBattlefieldTouch.bind(this));
+            } else {
+                battlefield.on('pointerdown', this.onBattlefieldClick.bind(this));
+            }
             
             this.battlefieldCreated = true;
         }
+        this.characters.forEach(character => {
+            if (character && character.container) {
+                character.container.interactive = true;
+                character.container.buttonMode = true;
+                character.container.on('pointerdown', this.onCharacterClick.bind(this, character));
+            }
+        });
     }
     
-    // Обновление всех персонажей на поле боя
-    update(delta) {
-        console.log(`[ПОЛЕ БОЯ] Обновление поля боя, количество персонажей: ${this.characters.length}, delta: ${delta}`);
+    onCharacterClick(character, event) {
+        // Проверяем, находимся ли мы в режиме боя И режиме использования заклинания
+    if (game.state === GAME_STATES.BATTLE && game.isSpellCastingMode && game.selectedSpellToCast) {
+        console.log("Клик по персонажу в режиме заклинания:", character.type, character.team);
         
-        // Обновляем всех персонажей
-        let aliveCount = 0;
-        let deadCount = 0;
-        for (let i = 0; i < this.characters.length; i++) {
-            const character = this.characters[i];
-            if (character) {
-                if (character.isAlive) {
-                    aliveCount++;
-                    console.log(`[ПОЛЕ БОЯ] Обновление живого персонажа ${character.type} (${character.team})`);
-                    character.update(delta, this.characters);
-                } else {
-                    deadCount++;
-                    console.log(`[ПОЛЕ БОЯ] Обновление мертвого персонажа ${character.type} (${character.team})`);
-                    // Обновляем только анимацию для мертвых персонажей
-                    character.updateAnimation(delta);
-                }
+        const spellType = game.selectedSpellToCast;
+        const spellInfo = SPELL_INFO[spellType];
+        
+        // Проверяем, подходит ли персонаж в качестве цели для заклинания
+        if (game.ui.isValidTargetForSpell(spellType, character)) {
+            console.log("Персонаж является допустимой целью для заклинания:", spellType);
+            
+            // Применяем заклинание к персонажу
+            game.ui.castSpell(spellType, { character: character });
+            
+            // Останавливаем распространение события
+            event.stopPropagation();
+        } else {
+            console.log("Персонаж не является допустимой целью для заклинания.");
+        }
+    }
+        // Если мы в режиме использования заклинания
+        if (game.isSpellCastingMode && game.selectedSpellToCast) {
+            console.log("Клик по персонажу в режиме заклинания:", character.type, character.team);
+            
+            const spellType = game.selectedSpellToCast;
+            const spellInfo = SPELL_INFO[spellType];
+            
+            // Проверяем, подходит ли персонаж в качестве цели для заклинания
+            if (game.ui.isValidTargetForSpell(spellType, character)) {
+                console.log("Персонаж является допустимой целью для заклинания:", spellType);
+                
+                // Применяем заклинание к персонажу
+                game.ui.castSpell(spellType, { character: character });
+                
+                // Останавливаем распространение события
+                event.stopPropagation();
+            } else {
+                console.log("Персонаж не является допустимой целью для заклинания.");
             }
         }
-        
-        console.log(`[ПОЛЕ БОЯ] Живых персонажей: ${aliveCount}`);
-        
-        // Проверяем условия победы/поражения
-        this.checkBattleStatus();
+    }
+
+    // Исправленный метод обработки касания
+    onBattlefieldTouch(event) {
+        // Преобразуем касание в клик для существующей логики
+        const touchPosition = event.data.global;
+        // Учитываем масштаб
+        const adjustedPosition = {
+            data: {
+                global: {
+                    x: touchPosition.x,
+                    y: touchPosition.y
+                }
+            }
+        };
+        this.onBattlefieldClick(adjustedPosition);
     }
     
-    // Проверка статуса битвы
-    checkBattleStatus() {
-        // Проверяем, есть ли живые персонажи в каждой команде
-        const playerAlive = this.playerCharacters.some(char => char.isAlive);
-        const enemyAlive = this.enemyCharacters.some(char => char.isAlive);
-        
-        // Если все враги мертвы, игрок победил
-        if (!enemyAlive && playerAlive && game.state === GAME_STATES.BATTLE) {
-            console.log('Игрок победил!');
-            game.endBattle(true);
-        }
-        // Если все игроки мертвы, игрок проиграл
-        else if (!playerAlive && enemyAlive && game.state === GAME_STATES.BATTLE) {
-            console.log('Игрок проиграл!');
-            game.endBattle(false);
-        }
-    }
-    
-    
-    // Handle click on battlefield (for character placement)
+    // Исправленный метод обработки клика
     onBattlefieldClick(event) {
         if (game.state === GAME_STATES.PLACEMENT || game.state === GAME_STATES.REINFORCEMENT) {
             if (game.ui.selectedSlotIndex !== -1 && game.ui.selectedCharacterType) {
-                const position = event.data.global;
+                // Получаем координаты клика
+                const rawPosition = event.data.global;
+                
+                // Преобразуем координаты с учетом масштаба сцены
+                const position = {
+                    x: rawPosition.x / game.scale,
+                    y: rawPosition.y / game.scale
+                };
                 
                 // Check if position is within battlefield
                 const centerX = GAME_WIDTH / 2;
@@ -136,6 +174,53 @@ window.BattlefieldManager = class BattlefieldManager {
         }
     }
     
+    // Обновление всех персонажей на поле боя
+    update(delta) {
+        // console.log(`[ПОЛЕ БОЯ] Обновление поля боя, количество персонажей: ${this.characters.length}, delta: ${delta}`);
+        
+        // Обновляем всех персонажей
+        let aliveCount = 0;
+        let deadCount = 0;
+        for (let i = 0; i < this.characters.length; i++) {
+            const character = this.characters[i];
+            if (character) {
+                if (character.isAlive) {
+                    aliveCount++;
+                    // console.log(`[ПОЛЕ БОЯ] Обновление живого персонажа ${character.type} (${character.team})`);
+                    character.update(delta, this.characters);
+                } else {
+                    deadCount++;
+                    // console.log(`[ПОЛЕ БОЯ] Обновление мертвого персонажа ${character.type} (${character.team})`);
+                    // Обновляем только анимацию для мертвых персонажей
+                    character.updateAnimation(delta);
+                }
+            }
+        }
+        
+        // console.log(`[ПОЛЕ БОЯ] Живых персонажей: ${aliveCount}`);
+        
+        // Проверяем условия победы/поражения
+        this.checkBattleStatus();
+    }
+    
+    // Проверка статуса битвы
+    checkBattleStatus() {
+        // Проверяем, есть ли живые персонажи в каждой команде
+        const playerAlive = this.playerCharacters.some(char => char.isAlive);
+        const enemyAlive = this.enemyCharacters.some(char => char.isAlive);
+        
+        // Если все враги мертвы, игрок победил
+        if (!enemyAlive && playerAlive && game.state === GAME_STATES.BATTLE) {
+            // console.log('Игрок победил!');
+            game.endBattle(true);
+        }
+        // Если все игроки мертвы, игрок проиграл
+        else if (!playerAlive && enemyAlive && game.state === GAME_STATES.BATTLE) {
+            // console.log('Игрок проиграл!');
+            game.endBattle(false);
+        }
+    }
+    
     // Place a character on the battlefield
     placeCharacter(type, x, y) {
         let character;
@@ -145,6 +230,11 @@ window.BattlefieldManager = class BattlefieldManager {
         
         // Назначаем персонажу ссылку на поле боя
         character.battlefield = this;
+        
+        // Добавляем интерактивность персонажу для заклинаний
+        character.container.interactive = true;
+        character.container.buttonMode = true;
+        character.container.on('pointerdown', this.onCharacterClick.bind(this, character));
         
         this.container.addChild(character.container);
         this.characters.push(character);
@@ -183,7 +273,7 @@ window.BattlefieldManager = class BattlefieldManager {
         const difficulty = game.selectedDifficulty || DIFFICULTY.EASY;
         const enemyCount = ENEMIES_BY_DIFFICULTY[difficulty];
         
-        console.log(`Generating ${enemyCount} enemies for difficulty: ${difficulty}`);
+        // console.log(`Generating ${enemyCount} enemies for difficulty: ${difficulty}`);
         
         // Generate the specified number of random enemies
         for (let i = 0; i < enemyCount; i++) {
@@ -206,16 +296,11 @@ window.BattlefieldManager = class BattlefieldManager {
             this.characters.push(enemy);
             this.enemyCharacters.push(enemy);
         }
-    }
-    
-    // Update all characters
-    update(delta) {
-        this.characters.forEach(character => {
-            character.update(delta, this.characters);
+        this.enemyCharacters.forEach(enemy => {
+            enemy.container.interactive = true;
+            enemy.container.buttonMode = true;
+            enemy.container.on('pointerdown', this.onCharacterClick.bind(this, enemy));
         });
-        
-        // Check win/lose conditions
-        this.checkBattleStatus();
     }
     
     // Check if battle is over
