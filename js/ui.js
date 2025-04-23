@@ -896,7 +896,7 @@ onBattlefieldClickForSpell(event) {
     const spellType = game.selectedSpellToCast;
     const spellInfo = SPELL_INFO[spellType];
     
-    // ИСПРАВЛЕНИЕ: Проверяем, что event.data существует
+    // Проверяем, что event.data существует
     if (!event || !event.data || !event.data.global) {
         console.error("Неверные данные события при клике по полю боя");
         return;
@@ -909,7 +909,17 @@ onBattlefieldClickForSpell(event) {
     
     console.log(`Клик по полю боя: x=${x}, y=${y}, тип заклинания: ${spellType}`);
     
-    // Логика в зависимости от типа цели заклинания
+    // Проверка типа заклинания по targetType
+    const isArenaSpell = ['point', 'area', 'vector', 'random'].includes(spellInfo.targetType);
+    
+    if (!isArenaSpell) {
+        return; // Если это не заклинание для арены, просто выходим
+    }
+    
+    // Останавливаем распространение события в любом случае, если это заклинание арены
+    event.stopPropagation && event.stopPropagation();
+    
+    // Логика для разных типов заклинаний
     if (spellInfo.targetType === 'point' || spellInfo.targetType === 'area' || spellInfo.targetType === 'random') {
         // Применяем заклинание по координатам
         this.castSpell(spellType, {x, y});
@@ -945,7 +955,7 @@ onBattlefieldClickForSpell(event) {
             this.container.addChild(pointIndicator);
             this.vectorStartIndicator = pointIndicator;
         } else {
-            // ИСПРАВЛЕНИЕ: Проверяем, что конечная точка отличается от начальной
+            // Проверяем, что конечная точка отличается от начальной
             const startX = this.vectorStartPoint.x;
             const startY = this.vectorStartPoint.y;
             

@@ -67,6 +67,8 @@ window.Character = class Character {
     }
     
     initGraphics() {
+        this.hitboxWidth = this.radius * 1.5;
+this.hitboxHeight = this.radius * 2.5;
         // Создаем основной графический элемент для персонажа
         if (this.team === 'enemy') {
             const outlineThickness = 2;
@@ -807,13 +809,21 @@ findTargetWithLowestHealth(characters) {
     // Метод для вычисления расстояния до другого персонажа
     distanceTo(character) {
         if (!character) return Infinity;
-    
-    const dx = character.x - this.x;
-    const dy = character.y - this.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // Возвращаем расстояние между краями персонажей
-    return distance - this.radius - character.radius;
+        
+        // Используем прямоугольное вычисление расстояния вместо круглого
+        const dx = Math.abs(character.x - this.x);
+        const dy = Math.abs(character.y - this.y);
+        
+        // Вычисляем перекрытие хитбоксов
+        const overlapX = Math.max(0, this.hitboxWidth/2 + character.hitboxWidth/2 - dx);
+        const overlapY = Math.max(0, this.hitboxHeight/2 + character.hitboxHeight/2 - dy);
+        
+        // Если есть перекрытие, расстояние = 0, иначе вычисляем минимальное расстояние
+        if (overlapX > 0 && overlapY > 0) {
+            return 0;
+        } else {
+            return Math.sqrt(dx * dx + dy * dy) - (this.hitboxWidth/2 + character.hitboxWidth/2);
+        }
     }
     
     moveTowardsTarget(delta) {

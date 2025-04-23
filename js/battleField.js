@@ -53,28 +53,39 @@ window.BattlefieldManager = class BattlefieldManager {
     }
     
     onCharacterClick(character, event) {
-        // Проверяем, находимся ли мы в режиме боя И режиме использования заклинания
-    if (game.state === GAME_STATES.BATTLE && game.isSpellCastingMode && game.selectedSpellToCast) {
-        console.log("Клик по персонажу в режиме заклинания:", character.type, character.team);
-        
-        const spellType = game.selectedSpellToCast;
-        const spellInfo = SPELL_INFO[spellType];
-        
-        // Проверяем, подходит ли персонаж в качестве цели для заклинания
-        if (game.ui.isValidTargetForSpell(spellType, character)) {
-            console.log("Персонаж является допустимой целью для заклинания:", spellType);
-            
-            // Применяем заклинание к персонажу
-            game.ui.castSpell(spellType, { character: character });
-            
-            // Останавливаем распространение события
-            event.stopPropagation();
-        } else {
-            console.log("Персонаж не является допустимой целью для заклинания.");
-        }
-    }
-        // Если мы в режиме использования заклинания
+        // Проверка на заклинания арены - если активен режим заклинания для арены,
+        // передаем клик на арену, а не на персонажа
         if (game.isSpellCastingMode && game.selectedSpellToCast) {
+            const spellInfo = SPELL_INFO[game.selectedSpellToCast];
+            
+            // Определяем, является ли заклинание заклинанием для арены
+            const isArenaSpell = ['point', 'area', 'vector', 'random'].includes(spellInfo.targetType);
+            
+            if (isArenaSpell) {
+                // Получаем ссылку на поле боя
+                const battlefield = game.battlefield.battlefield;
+                
+                // Создаем новое событие с теми же координатами
+                const newEvent = {
+                    data: event.data,
+                    stopPropagation: event.stopPropagation
+                };
+                
+                // Останавливаем текущее событие, чтобы оно не обрабатывалось дальше
+                event.stopPropagation();
+                
+                // Альтернативно, можем напрямую вызвать обработчик клика по полю боя
+                if (game.ui && typeof game.ui.onBattlefieldClickForSpell === 'function') {
+                    game.ui.onBattlefieldClickForSpell(newEvent);
+                    return;
+                }
+                
+                return;
+            }
+        }
+    
+        // Проверяем, находимся ли мы в режиме боя И режиме использования заклинания
+        if (game.state === GAME_STATES.BATTLE && game.isSpellCastingMode && game.selectedSpellToCast) {
             console.log("Клик по персонажу в режиме заклинания:", character.type, character.team);
             
             const spellType = game.selectedSpellToCast;
@@ -94,6 +105,8 @@ window.BattlefieldManager = class BattlefieldManager {
             }
         }
     }
+
+
 
     // Исправленный метод обработки касания
     onBattlefieldTouch(event) {
@@ -199,8 +212,11 @@ window.BattlefieldManager = class BattlefieldManager {
         
         // console.log(`[ПОЛЕ БОЯ] Живых персонажей: ${aliveCount}`);
         
-        // Проверяем условия победы/поражения
-        this.checkBattleStatus();
+    
+    // Проверяем условия победы/поражения
+    this.checkBattleStatus();
+
+
     }
     
     // Проверка статуса битвы
@@ -236,13 +252,116 @@ window.BattlefieldManager = class BattlefieldManager {
         character.container.buttonMode = true;
         character.container.on('pointerdown', this.onCharacterClick.bind(this, character));
         
+        // Добавляем в списки немедленно
         this.container.addChild(character.container);
         this.characters.push(character);
         this.playerCharacters.push(character);
         
+        // Отодвигаем только от дружественных персонажей в любом режиме
+        // Но не отодвигаем от врагов в режиме размещения или подкрепления
+        this.adjustCharacterPosition(character);
+        
+        // Возвращаем созданного персонажа
         return character;
     }
     
+    // Новый метод для правильного позиционирования персонажей 
+adjustCharacterPosition(character) {
+    if (!character || !character.isAlive) return;
+    
+    let moved = false;
+    
+    // Проверяем всех других персонажей
+    for (let other of this.characters) {
+        if (character === other || !other.isAlive) continue;
+        
+        // В режиме расстановки или подкрепления игроки могут быть размещены рядом с врагами
+        if ((game.state === GAME_STATES.PLACEMENT || game.state === GAME_STATES.REINFORCEMENT) && 
+            other.team !== character.team) {
+            continue;
+        }
+        
+        // Используем существующий метод distanceTo для определения расстояния
+        const distance = character.distanceTo(other);
+        
+        // Если персонажи перекрываются
+        if (distance === 0) {
+            // Определяем направление отталкивания
+            const dx = character.x - other.x;
+            const dy = character.y - other.y;
+            
+            // Если персонажи в точно одном месте, даем случайное смещение
+            if (dx === 0 && dy === 0) {
+                const angle = Math.random() * Math.PI * 2;
+                const pushDistance = Math.max(character.radius, other.radius) + 10;
+                
+                character.x += Math.cos(angle) * pushDistance;
+                character.y += Math.sin(angle) * pushDistance;
+            } else {
+                // Вычисляем нормализованный вектор направления
+                const totalDist = Math.sqrt(dx * dx + dy * dy);
+                const nx = dx / (totalDist || 1);
+                const ny = dy / (totalDist || 1);
+                
+                // Определяем минимальное расстояние между центрами (радиусы + маленький отступ)
+                const minDistance = character.radius + other.radius + 10;
+                
+                // Смещаем персонажа
+                character.x += nx * minDistance * 0.6;
+                character.y += ny * minDistance * 0.6;
+            }
+            
+            moved = true;
+        }
+    }
+    
+    if (moved) {
+        // Проверка границ поля боя
+        character.stayWithinBattlefield();
+        
+        // Обновляем позицию контейнера
+        character.container.position.set(character.x, character.y);
+    }
+}
+    pushCharacterAway(character) {
+        // Задаем минимальное расстояние между персонажами
+        const minDistance = character.radius + 10;
+        
+        // Проверяем расстояние до всех других персонажей
+        for (let i = 0; i < this.characters.length; i++) {
+            const otherChar = this.characters[i];
+            
+            // Пропускаем, если это тот же персонаж или мертвый персонаж
+            if (otherChar === character || !otherChar.isAlive) continue;
+            
+            // Вычисляем расстояние
+            const dx = character.x - otherChar.x;
+            const dy = character.y - otherChar.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Если персонажи слишком близко
+            if (distance < minDistance) {
+                // Вычисляем вектор отталкивания
+                const pushDistance = minDistance - distance;
+                const angle = Math.atan2(dy, dx);
+                
+                // Отталкиваем персонажа
+                character.x += Math.cos(angle) * pushDistance;
+                character.y += Math.sin(angle) * pushDistance;
+                
+                // Обновляем позицию контейнера
+                character.container.position.set(character.x, character.y);
+                
+                // Делаем рекурсивную проверку после перемещения
+                this.pushCharacterAway(character);
+                break;
+            }
+        }
+        
+        // Также проверяем, не вышел ли персонаж за пределы арены
+        character.stayWithinBattlefield();
+    }
+
     // Generate enemy characters
     generateEnemies() {
         // Clear any existing enemies
